@@ -31,7 +31,7 @@ extension MainViewController {
         cardView.backgroundColor = .yellow
         view.addSubview(cardView)
         cardView.snp.makeConstraints {
-            $0.height.equalTo(cardHeight)
+            $0.height.equalTo(500)
             $0.left.right.equalToSuperview()
         }
         

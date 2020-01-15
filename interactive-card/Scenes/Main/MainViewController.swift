@@ -10,8 +10,8 @@ import UIKit
 
 class MainViewController: UIViewController {
     var cardView: UIView!
-    var cardHeight: CGFloat = 500
     var cardAnimators: [UIViewPropertyAnimator] = []
+    var fractionOfAnimationComplete: CGFloat = 0
     var animationProgressWhenInterrupted: CGFloat = 0
     enum CardState {
         case expanded
@@ -33,50 +33,65 @@ class MainViewController: UIViewController {
     
     private func animateTransitionIfNeeded(state: CardState, duration: TimeInterval) {
         if cardAnimators.isEmpty {
-            //This is what is animated
+            print("Next state: \(state)")
             let frameAnimator = UIViewPropertyAnimator(duration: duration, dampingRatio: 1) {
+                print("Creating cardView animator")
                 switch state {
                 case .expanded:
-                    self.cardView.frame.origin.y = self.view.frame.height - self.cardHeight
+                    print("Adding cardView y = \(self.view.frame.height - self.cardView.frame.height)")
+                    self.cardView.frame.origin.y = self.view.frame.height - self.cardView.frame.height
                 case .collapsed:
+                    print("Adding cardView y = \(self.view.frame.maxY)")
                     self.cardView.frame.origin.y = self.view.frame.maxY
                 }
             }
             frameAnimator.addCompletion { _ in
-                self.cardVisible = !self.cardVisible
+                print("Card visible goes from \(self.cardVisible) to \(!self.cardVisible)")
+                print("Removing all animators from array")
                 self.cardAnimators.removeAll()
             }
-            
+            print("Starting animation")
             frameAnimator.startAnimation()
+            print("Adding animator in array")
             cardAnimators.append(frameAnimator)
         }
     }
     
     @objc func openCardButtonTapped(_ sender: UIButton) {
-        animateTransitionIfNeeded(state: nextState, duration: 0.9)
-        //cardView.frame.origin.y = view.frame.maxY - 500
+        animateTransitionIfNeeded(state: nextState, duration: 0.7)
     }
     
     @objc func cardViewPanned(_ recognizer: UIPanGestureRecognizer) {
         switch recognizer.state {
         case .began:
+            print("Panning began")
             if cardAnimators.isEmpty {
-                animateTransitionIfNeeded(state: nextState, duration: 0.9)
+                cardVisible = true
+                animateTransitionIfNeeded(state: nextState, duration: 0.7)
             }
             for animator in cardAnimators {
                 animator.pauseAnimation()
                 animationProgressWhenInterrupted = animator.fractionComplete
+                fractionOfAnimationComplete = animator.fractionComplete
             }
         case .changed:
             let translation = recognizer.translation(in: self.cardView)
-            var fractionCompleted = translation.y / cardHeight
-            fractionCompleted = cardVisible ? fractionCompleted : -fractionCompleted
+            fractionOfAnimationComplete = translation.y / self.cardView.frame.height
+            fractionOfAnimationComplete = fractionOfAnimationComplete + animationProgressWhenInterrupted
             for animator in cardAnimators {
-                animator.fractionComplete = fractionCompleted + animationProgressWhenInterrupted
+                animator.fractionComplete = fractionOfAnimationComplete
             }
         case .ended:
-            for animator in cardAnimators {
-                animator.continueAnimation(withTimingParameters: nil, durationFactor: 0)
+            print(fractionOfAnimationComplete)
+            if fractionOfAnimationComplete > 0.3 {
+                cardVisible = !cardVisible
+                for animator in cardAnimators {
+                    animator.continueAnimation(withTimingParameters: nil, durationFactor: 0)
+                }
+            } else {
+                cardVisible = false
+                cardAnimators.removeAll()
+                animateTransitionIfNeeded(state: nextState, duration: 0.4)
             }
         default:
             break
